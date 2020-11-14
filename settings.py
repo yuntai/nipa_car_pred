@@ -1,0 +1,3 @@
+prepdir='prep'
+datadir='data'
+
