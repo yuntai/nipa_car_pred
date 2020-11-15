@@ -8,6 +8,10 @@ import gzip
 import pickle
 import time
 import xgboost as xgb
+from pathlib import Path
+
+class SETTINGS:
+    models = Path('models')
 
 if __name__ == '__main__':
 
@@ -35,6 +39,7 @@ if __name__ == '__main__':
     assert s.sum()==0
     num_fold = df.fold.nunique()
     print("number of folds:", num_fold)
+    assert args.fold == -1 or args.fold < fold_cnt
 
     dummy_cols = [c for c in df.columns if c.startswith('dum')]
 
@@ -128,18 +133,28 @@ if __name__ == '__main__':
                 models.hpsearch_svr(x_tr, y_tr, x_va, y_va, cat_feats, args)
 
     elif args.mode == 'fold':
-        _st = time.time()
-        print(f"fold={args.fold} save={args.save}")
-        fold_cnt = df.fold.nunique()
-        assert args.fold >=0 and args.fold < fold_cnt
-        x_tr = df[(df.split=='train') & (df.fold!=args.fold)][cols]
-        y_tr = x_tr.pop('ad_periods')
-        m, tr_score, _ = models.__dict__[f"fit_{args.model}"](x_tr, y_tr, None, None, cat_feats, args)
-        et = time.time() - _st
-        fn = f"models/{args.save}.m"
-        print(f"({et}) saving model to {fn}...")
-        with gzip.open(fn, 'wb') as f:
-            pickle.dump(m, f)
+        # when args.fold == -1, we use all the training data
+        fn = SETTINGS.models/f"{args.save}.m"
+        if not Path(fn).exists():
+            _st = time.time()
+            print(f"fold={args.fold} save={args.save}")
+            fold_cnt = df.fold.nunique()
+            if args.fold == -1:
+                x_tr = df[(df.split=='train')][cols]
+            else:
+                # out of folder training
+                x_tr = df[(df.split=='train') & (df.fold!=args.fold)][cols]
+            y_tr = x_tr.pop('ad_periods')
+
+            m, tr_score, _ = models.__dict__[f"fit_{args.model}"](x_tr, y_tr, None, None, cat_feats, args)
+            et = time.time() - _st
+
+            print(f"({et}) saving model to {fn}...")
+            with gzip.open(fn, 'wb') as f:
+                pickle.dump(m, f)
+        else:
+            print(f"{fn} already exists...")
+
     elif args.mode == 'cv':
         fold_cnt = df.fold.nunique()
         if args.nocv >= fold_cnt:
