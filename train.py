@@ -10,8 +10,7 @@ import time
 import xgboost as xgb
 from pathlib import Path
 
-class SETTINGS:
-    models = Path('models')
+from settings import SETTINGS
 
 if __name__ == '__main__':
 
@@ -39,7 +38,7 @@ if __name__ == '__main__':
     assert s.sum()==0
     num_fold = df.fold.nunique()
     print("number of folds:", num_fold)
-    assert args.fold == -1 or args.fold < fold_cnt
+    assert args.fold == -1 or args.fold < num_fold
 
     dummy_cols = [c for c in df.columns if c.startswith('dum')]
 
@@ -134,11 +133,11 @@ if __name__ == '__main__':
 
     elif args.mode == 'fold':
         # when args.fold == -1, we use all the training data
-        fn = SETTINGS.models/f"{args.save}.m"
+        fn = SETTINGS.modelsdir/f"{args.save}.m"
+
         if not Path(fn).exists():
             _st = time.time()
             print(f"fold={args.fold} save={args.save}")
-            fold_cnt = df.fold.nunique()
             if args.fold == -1:
                 x_tr = df[(df.split=='train')][cols]
             else:
